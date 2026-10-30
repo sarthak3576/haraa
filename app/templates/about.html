@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}About{% endblock %}
+{% block content %}
+<h2 class="mb-1">{{ icon("info", "icon-lg") }} About Haraa</h2>
+<p class="text-muted mb-4">How this app is put together, and roughly what each piece costs.</p>
+
+<div class="eco-card p-4 mb-4">
+  <div class="d-flex flex-wrap align-items-center justify-content-center gap-2">
+    <div class="arch-box">Browser<br><small>Bootstrap + vanilla JS UI</small></div>
+    <div class="fs-4">&rarr;</div>
+    <div class="arch-box">FastAPI app<br><small>localhost:8000, session auth</small></div>
+    <div class="fs-4">&rarr;</div>
+    <div class="d-flex flex-column gap-2">
+      <div class="arch-box">Amazon Cognito<br><small>login / registration</small></div>
+      <div class="arch-box">Amazon DynamoDB<br><small>dashboard + quiz data</small></div>
+      <div class="arch-box">Amazon Rekognition<br><small>fallback image labels</small></div>
+      <div class="arch-box">Google Gemini<br><small>chatbot, primary provider</small></div>
+      <div class="arch-box">Amazon Bedrock<br><small>chatbot fallback (Claude Haiku)</small></div>
+      <div class="arch-box">Local MobileNetV3<br><small>primary waste classifier, in-process, no AWS call</small></div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-6">
+    <div class="eco-card p-3 h-100">
+      <h6>Component roles</h6>
+      <ul class="small">
+        <li><strong>Browser:</strong> renders pages and runs small JS widgets (chat, quiz, calculator, dark mode toggle).</li>
+        <li><strong>FastAPI app:</strong> a single Python process serving all routes, templates, and the ML model, bound to 127.0.0.1 only.</li>
+        <li><strong>Amazon Cognito:</strong> manages user accounts and passwords, so the app never stores passwords itself.</li>
+        <li><strong>Amazon DynamoDB:</strong> a single on-demand table stores dashboard events, aggregates and quiz scores.</li>
+        <li><strong>Amazon Rekognition:</strong> called only when the local model's confidence is below 60%, or if it isn't trained yet.</li>
+        <li><strong>Google Gemini:</strong> the chatbot's default provider, configurable via <code>CHATBOT_PROVIDER</code>. Falls back automatically on rate limits, network errors, or blocked responses.</li>
+        <li><strong>Amazon Bedrock:</strong> the chatbot's second-choice provider (Claude Haiku) if Gemini is unavailable. A built-in rule-based assistant with 60+ topics and fuzzy matching takes over if neither is available.</li>
+        <li><strong>Local MobileNetV3:</strong> fine-tuned on TrashNet, runs entirely on-device (CPU or Apple GPU), with no per-call AWS cost.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="eco-card p-3 h-100">
+      <h6>Cost summary</h6>
+      <table class="table table-sm small">
+        <thead><tr><th>Service</th><th>Pricing basis</th><th>Expected demo cost</th></tr></thead>
+        <tbody>
+          <tr><td>Cognito</td><td>Free under 50,000 MAUs</td><td>$0</td></tr>
+          <tr><td>DynamoDB</td><td>On-demand, per request</td><td>Cents at most</td></tr>
+          <tr><td>Rekognition</td><td>~$1 / 1,000 images, only on low-confidence fallback</td><td>Cents</td></tr>
+          <tr><td>Gemini (Flash)</td><td>Free tier (generous daily limits)</td><td>$0</td></tr>
+          <tr><td>Bedrock (Claude Haiku)</td><td>Per-token, fractions of a cent per message, used only if Gemini is unavailable</td><td>Cents</td></tr>
+          <tr><td>Local ML model</td><td>Runs on your own machine</td><td>$0</td></tr>
+          <tr><td>EC2 / Lambda / API Gateway / S3</td><td>Not used</td><td>$0</td></tr>
+        </tbody>
+      </table>
+      <p class="small text-muted mb-0">No component runs on a schedule or auto-scales, so idle cost is effectively $0.</p>
+    </div>
+  </div>
+</div>
+
+<div id="provider-health" class="small text-muted mb-4">
+  <span class="spinner-eco"></span> Checking chat status...
+</div>
+
+<div class="eco-card p-4 mb-4">
+  <h6>Serverless AWS deployment</h6>
+  <p class="small text-muted">
+    This same app also runs as a serverless demo deployment (<code>aws-deploy</code>
+    branch, <code>infra/template.yaml</code>) -- CloudFront in front of two things:
+    the static assets in a private S3 bucket, and this whole app (unchanged,
+    same session-cookie login) running in a Lambda function behind API
+    Gateway. A separate, Cognito-JWT-authorized JSON API
+    (<code>/api/v1/classify</code>, <code>/uploads/presign</code>,
+    <code>/waste-events</code>, <code>/dashboard</code>, <code>/quiz-score</code>,
+    <code>/chat</code>) runs as five more Lambda functions on the same API,
+    each with its own least-privilege IAM role and no function sharing
+    another's permissions. Its own Cognito user pool and DynamoDB table are
+    separate from this local app's -- deployed and local data never mix.
+  </p>
+  <p class="small text-muted mb-0">
+    See <code>docs/ARCHITECTURE.md</code> (diagram), <code>docs/SECURITY.md</code>
+    (IAM rationale), and <code>docs/COST.md</code> (per-service estimate) in
+    the repo for the full picture. One command deploys the whole stack
+    (<code>scripts/deploy.sh</code>); one command tears it down
+    (<code>scripts/destroy.sh</code>).
+  </p>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(async function () {
+  const el = document.getElementById('provider-health');
+  try {
+    const res = await fetch('/api/chatbot/health');
+    if (res.status === 401) return;
+    const data = await res.json();
+    const labels = {gemini: 'Gemini', bedrock: 'Bedrock', offline: 'Offline assistant'};
+    const parts = ['gemini', 'bedrock', 'offline'].map(name => {
+      const info = data[name];
+      const dot = '<span class="status-dot ' + (info.available ? "status-dot-ok" : "status-dot-bad") + '"></span>';
+      const text = info.available ? 'working' : (info.reason || 'unavailable');
+      return `<span class="me-3">${dot} <strong>${labels[name]}</strong>: ${text}</span>`;
+    });
+    el.innerHTML = '<strong>Chat status:</strong> ' + parts.join('');
+  } catch (err) {
+    el.textContent = 'Could not check chat status.';
+  }
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,25 @@
+<svg width="220" height="170" viewBox="0 0 220 170" xmlns="http://www.w3.org/2000/svg">
+  <!-- ground line -->
+  <path d="M5 150 Q110 158 215 150" stroke="#e6dac8" stroke-width="2" fill="none" stroke-linecap="round"/>
+
+  <!-- dry waste bin (sand) -->
+  <path d="M18 150 L22 95 Q22 90 28 90 L62 90 Q68 90 68 95 L72 150 Z" fill="#efe6d8" stroke="#1f3d2b" stroke-width="2.2" stroke-linejoin="round"/>
+  <path d="M20 95 L70 95" stroke="#1f3d2b" stroke-width="2.2" stroke-linecap="round"/>
+  <path d="M30 84 Q45 76 60 84 L58 95 L32 95 Z" fill="#d9a441" stroke="#1f3d2b" stroke-width="2"/>
+
+  <!-- hazardous bin (clay), slightly shorter -->
+  <path d="M85 150 L89 108 Q89 103 95 103 L123 103 Q129 103 129 108 L133 150 Z" fill="#b2613e" stroke="#1f3d2b" stroke-width="2.2" stroke-linejoin="round" opacity="0.92"/>
+  <path d="M87 108 L131 108" stroke="#1f3d2b" stroke-width="2.2" stroke-linecap="round"/>
+  <path d="M97 98 Q109 90 121 98 L119 108 L99 108 Z" fill="#1f3d2b"/>
+
+  <!-- wet waste bin (forest), tallest -->
+  <path d="M146 150 L150 80 Q150 74 157 74 L194 74 Q201 74 201 80 L205 150 Z" fill="#1f3d2b" stroke="#1f3d2b" stroke-width="2.2" stroke-linejoin="round"/>
+  <path d="M148 80 L203 80" stroke="#efe6d8" stroke-width="2" stroke-linecap="round"/>
+  <path d="M160 68 Q175 58 192 68 L189 80 L163 80 Z" fill="#6f9c82" stroke="#1f3d2b" stroke-width="2"/>
+
+  <!-- small sprout growing beside the bins -->
+  <path d="M176 60 C176 46 168 40 160 36" stroke="#1f3d2b" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <path d="M176 60 C176 48 184 42 191 40" stroke="#1f3d2b" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <ellipse cx="159" cy="34" rx="7" ry="4.5" fill="#d9a441" transform="rotate(-20 159 34)"/>
+  <ellipse cx="192" cy="38" rx="7" ry="4.5" fill="#6f9c82" transform="rotate(25 192 38)"/>
+</svg>

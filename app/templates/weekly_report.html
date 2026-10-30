@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}Weekly report{% endblock %}
+{% block content %}
+<div class="no-print mb-3 d-flex justify-content-between align-items-center">
+  <h2 class="mb-0">{{ icon("bar-chart-2", "icon-lg") }} Your weekly report</h2>
+  {% if report %}
+  <button type="button" class="btn btn-success" onclick="window.print()">{{ icon("printer") }} Download PDF</button>
+  {% endif %}
+</div>
+<p class="text-muted no-print mb-3">Click "Download PDF" and choose "Save as PDF" as the destination in the print dialog.</p>
+
+{% if error %}
+<div class="alert alert-danger">Couldn't build your report right now. ({{ error }})</div>
+{% elif report %}
+<div class="print-sheet eco-card p-4">
+  <h4>Weekly waste report</h4>
+  <p class="text-muted">{{ user_email }}</p>
+
+  <div class="row g-3 mb-3">
+    <div class="col-md-4">
+      <div class="stat-tile">
+        <div class="value">{{ report.this_week.items }}</div>
+        <div class="text-muted">Items logged this week</div>
+        {% if report.items_change_pct is not none %}
+        <div class="small {% if report.items_change_pct >= 0 %}text-success{% else %}text-danger{% endif %}">
+          {{ "+" if report.items_change_pct >= 0 else "" }}{{ report.items_change_pct }}% vs last week
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="stat-tile">
+        <div class="value">{{ report.this_week.kg }} kg</div>
+        <div class="text-muted">Waste diverted this week</div>
+        {% if report.kg_change_pct is not none %}
+        <div class="small {% if report.kg_change_pct >= 0 %}text-success{% else %}text-danger{% endif %}">
+          {{ "+" if report.kg_change_pct >= 0 else "" }}{{ report.kg_change_pct }}% vs last week
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="stat-tile">
+        <div class="value">{{ report.this_week.co2 }} kg</div>
+        <div class="text-muted">CO2 saved this week</div>
+        {% if report.co2_change_pct is not none %}
+        <div class="small {% if report.co2_change_pct >= 0 %}text-success{% else %}text-danger{% endif %}">
+          {{ "+" if report.co2_change_pct >= 0 else "" }}{{ report.co2_change_pct }}% vs last week
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <h6>By category this week</h6>
+  {% if report.this_week.by_category %}
+  <ul>
+    {% for cat, kg in report.this_week.by_category.items() %}
+    <li>{{ cat|capitalize }}: {{ "%.2f"|format(kg) }} kg</li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="text-muted">Nothing logged this week yet.</p>
+  {% endif %}
+
+  <p class="small text-muted mt-3">Compared against the 7 days before that ({{ report.last_week.items }} items, {{ report.last_week.kg }} kg).</p>
+</div>
+{% endif %}
+{% endblock %}

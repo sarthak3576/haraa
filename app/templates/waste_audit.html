@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}Waste audit{% endblock %}
+{% block content %}
+<div class="no-print">
+<h2 class="mb-1">{{ icon("clock", "icon-lg") }} 2-minute household waste audit</h2>
+<p class="text-muted mb-4">Answer honestly. You'll get a score and your top 3 improvements at the end.</p>
+
+<form id="audit-form">
+  {% for q in questions %}
+  <div class="eco-card p-3 mb-3">
+    <p class="mb-2"><strong>{{ loop.index }}. {{ q.question }}</strong></p>
+    {% for label, pts in q.options %}
+    <div class="form-check">
+      <input class="form-check-input" type="radio" name="{{ q.id }}" id="{{ q.id }}-{{ loop.index }}" value="{{ pts }}" required>
+      <label class="form-check-label" for="{{ q.id }}-{{ loop.index }}">{{ label }}</label>
+    </div>
+    {% endfor %}
+  </div>
+  {% endfor %}
+  <button type="submit" class="btn btn-success">See my score</button>
+</form>
+</div>
+
+<div id="audit-results" class="print-sheet" style="display:none">
+  <div class="eco-card p-4">
+    <h3>Your waste audit results</h3>
+    <p class="text-muted">{{ user_email }}</p>
+    <div class="stat-tile d-inline-block px-4 mb-3">
+      <div class="value" id="result-score">0%</div>
+      <div class="text-muted" id="result-grade">Score</div>
+    </div>
+
+    <h5 class="mt-3">Your top 3 improvements</h5>
+    <ol id="result-tips"></ol>
+
+    <div class="no-print mt-3">
+      <button type="button" class="btn btn-outline-success" id="print-btn">{{ icon("printer") }} Print summary</button>
+      <button type="button" class="btn btn-outline-secondary" id="retake-btn">Retake audit</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const QUESTIONS = {{ questions_json|safe }};
+const MAX_SCORE = {{ max_score }};
+
+document.getElementById('audit-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const formData = new FormData(e.target);
+  let total = 0;
+  const scored = [];
+
+  QUESTIONS.forEach(q => {
+    const value = parseInt(formData.get(q.id), 10);
+    total += value;
+    scored.push({ id: q.id, tip: q.tip, points: value, max: Math.max(...q.options.map(o => o[1])) });
+  });
+
+  const pct = Math.round((total / MAX_SCORE) * 100);
+  let grade = 'Room to improve';
+  if (pct >= 85) grade = 'Excellent';
+  else if (pct >= 60) grade = 'Good habits';
+
+  document.getElementById('result-score').textContent = pct + '%';
+  document.getElementById('result-grade').textContent = grade;
+
+  const weakest = scored.sort((a, b) => (a.points / a.max) - (b.points / b.max)).slice(0, 3);
+  const tipsEl = document.getElementById('result-tips');
+  tipsEl.innerHTML = '';
+  weakest.forEach(item => {
+    const li = document.createElement('li');
+    li.textContent = item.tip;
+    li.className = 'mb-2';
+    tipsEl.appendChild(li);
+  });
+
+  document.getElementById('audit-form').closest('.no-print').style.display = 'none';
+  document.getElementById('audit-results').style.display = '';
+  window.scrollTo(0, 0);
+});
+
+document.getElementById('print-btn').addEventListener('click', () => window.print());
+document.getElementById('retake-btn').addEventListener('click', () => {
+  document.getElementById('audit-results').style.display = 'none';
+  document.querySelector('.no-print').style.display = '';
+  document.getElementById('audit-form').reset();
+});
+</script>
+{% endblock %}

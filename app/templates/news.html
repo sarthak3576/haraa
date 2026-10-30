@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}News{% endblock %}
+{% block content %}
+<h2 class="mb-1">{{ icon("newspaper", "icon-lg") }} What's happening in waste management</h2>
+
+{% if is_fallback %}
+<div class="alert alert-warning">Live news feeds weren't reachable, so these are curated reference links instead.</div>
+{% else %}
+<p class="text-muted">Live headlines from {{ feed_count }} RSS feeds, cached for up to an hour.</p>
+{% endif %}
+
+<div class="row g-2 mb-3">
+  <div class="col-md-6">
+    <label for="search-box" class="visually-hidden">Search articles</label>
+    <input type="text" id="search-box" class="form-control" placeholder="Search articles...">
+  </div>
+  <div class="col-md-4">
+    <label for="topic-filter" class="visually-hidden">Filter by topic</label>
+    <select id="topic-filter" class="form-select">
+      <option value="">All topics</option>
+      {% for topic in topics %}
+      <option value="{{ topic }}">{{ topic }}</option>
+      {% endfor %}
+    </select>
+  </div>
+</div>
+
+<div id="article-list" class="list-group">
+  {% for a in articles %}
+  <a href="{{ a.url }}" target="_blank" rel="noopener noreferrer"
+     class="list-group-item list-group-item-action article-item eco-card mb-2"
+     data-title="{{ a.title|lower }}" data-topic="{{ a.topic }}">
+    <div class="d-flex justify-content-between">
+      <strong>{{ a.title }}</strong>
+      <span class="text-muted small">{{ a.published_display }}</span>
+    </div>
+    <div class="small text-muted">{{ a.source }} &middot; {{ a.topic }}</div>
+  </a>
+  {% endfor %}
+</div>
+<p id="no-results" class="text-muted" style="display:none">No articles match your search.</p>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const searchBox = document.getElementById('search-box');
+const topicFilter = document.getElementById('topic-filter');
+const items = Array.from(document.querySelectorAll('.article-item'));
+const noResults = document.getElementById('no-results');
+
+function applyFilters() {
+  const q = searchBox.value.toLowerCase();
+  const topic = topicFilter.value;
+  let visible = 0;
+  items.forEach(item => {
+    const matchesText = item.dataset.title.includes(q);
+    const matchesTopic = !topic || item.dataset.topic === topic;
+    const show = matchesText && matchesTopic;
+    item.style.display = show ? '' : 'none';
+    if (show) visible++;
+  });
+  noResults.style.display = visible === 0 ? 'block' : 'none';
+}
+
+searchBox.addEventListener('input', applyFilters);
+topicFilter.addEventListener('change', applyFilters);
+</script>
+{% endblock %}

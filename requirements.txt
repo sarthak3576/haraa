@@ -1,0 +1,16 @@
+fastapi>=0.115
+uvicorn[standard]>=0.32
+boto3>=1.35
+python-multipart>=0.0.9
+itsdangerous>=2.2
+jinja2>=3.1
+python-dotenv>=1.0
+
+# Local ML inference (photo upload classifier) -- CPU/MPS, no extra AWS cost
+torch>=2.5
+torchvision>=0.20
+pillow>=10.4
+pillow-heif>=0.18
+
+# Chatbot: Google Gemini (primary provider)
+google-genai>=1.0

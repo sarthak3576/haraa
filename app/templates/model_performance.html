@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}Model Performance{% endblock %}
+{% block content %}
+<h2 class="mb-1">{{ icon("bar-chart-2", "icon-lg") }} Model Performance</h2>
+
+{% if not metrics %}
+<div class="alert alert-warning">
+  No trained model found yet. Run <code>ml/.venv/bin/python ml/train.py</code> (after
+  <code>ml/.venv/bin/python ml/split_dataset.py</code>) to train the classifier and populate this page.
+</div>
+{% else %}
+<p class="text-muted">
+  Dataset: {{ metrics.dataset.name }} &middot; classes: {{ metrics.dataset.classes|join(', ') }}<br>
+  Train/val/test sizes: {{ metrics.dataset.train_size }} / {{ metrics.dataset.val_size }} / {{ metrics.dataset.test_size }}
+  &middot; trained on {{ metrics.device_used }}
+</p>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="stat-tile">
+      <div class="value">{{ "%.1f"|format(metrics.test_accuracy * 100) }}%</div>
+      <div class="text-muted">Test accuracy</div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="stat-tile">
+      <div class="value">{{ "%.1f"|format(metrics.best_val_accuracy * 100) }}%</div>
+      <div class="text-muted">Best validation accuracy</div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="stat-tile">
+      <div class="value">{{ metrics.hyperparameters.phase1_epochs + metrics.hyperparameters.phase2_epochs }}</div>
+      <div class="text-muted">Total training epochs</div>
+    </div>
+  </div>
+</div>
+
+<div class="eco-card p-3 mb-4">
+  <h5>Per-class precision / recall / F1 (test set)</h5>
+  <table class="table table-sm">
+    <thead><tr><th>Class</th><th>Precision</th><th>Recall</th><th>F1</th><th>Support</th></tr></thead>
+    <tbody>
+      {% for row in per_class %}
+      <tr>
+        <td>{{ row.class_name|capitalize }}</td>
+        <td>{{ row.precision }}</td>
+        <td>{{ row.recall }}</td>
+        <td>{{ row.f1 }}</td>
+        <td>{{ row.support }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-6">
+    <div class="eco-card p-3 text-center">
+      <h6>Training curves</h6>
+      <img src="/static/model_report/training_curves.png" class="img-fluid rounded">
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="eco-card p-3 text-center">
+      <h6>Confusion matrix (test set)</h6>
+      <img src="/static/model_report/confusion_matrix.png" class="img-fluid rounded">
+    </div>
+  </div>
+</div>
+
+<div class="eco-card p-3 mb-4 text-center">
+  <h6>Sample predictions</h6>
+  <img src="/static/model_report/sample_predictions.png" class="img-fluid rounded">
+</div>
+
+<div class="eco-card p-3">
+  <h6>Limitations</h6>
+  <ul class="small text-muted mb-0">
+    <li>TrashNet has 6 classes (cardboard, glass, metal, paper, plastic, trash) with no dedicated organic or e-waste class --
+      cardboard is mapped to "paper" and "trash" is mapped to "other" for this app's dashboard categories.</li>
+    <li>~2,500 images total is a small dataset by deep-learning standards; accuracy on real-world photos (different lighting,
+      backgrounds, phone cameras) will likely be lower than the test-set number above.</li>
+    <li>The "trash" class is the smallest (137 images total) and is the hardest for the model to learn reliably.</li>
+    <li>The 60% confidence threshold before falling back to Rekognition is a simple heuristic, not a calibrated probability.</li>
+  </ul>
+</div>
+{% endif %}
+{% endblock %}

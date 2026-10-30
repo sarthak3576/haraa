@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Where does it go?{% endblock %}
+{% block content %}
+<h2 class="mb-1">{{ icon("search", "icon-lg") }} {{ t("lookup.title") }}</h2>
+<p class="text-muted mb-4">{{ t("lookup.subtitle", count=items|length) }}</p>
+
+<div class="row g-2 mb-4">
+  <div class="col-md-6">
+    <label for="item-search" class="visually-hidden">Search items</label>
+    <input type="text" id="item-search" class="form-control" placeholder="{{ t('lookup.search_placeholder') }}">
+  </div>
+  <div class="col-md-4">
+    <label for="item-category-filter" class="visually-hidden">Filter by category</label>
+    <select id="item-category-filter" class="form-select">
+      <option value="">{{ t("lookup.all_categories") }}</option>
+      {% for cat in categories %}
+      <option value="{{ cat }}">{{ cat|capitalize }}</option>
+      {% endfor %}
+    </select>
+  </div>
+</div>
+
+<div id="item-list" class="row g-3">
+  {% for item in items %}
+  <div class="col-md-6 col-lg-4 item-card"
+       data-title="{{ item.title|lower }}" data-keywords="{{ item.keywords|join(' ')|lower }}" data-category="{{ item.category }}">
+    <div class="eco-card p-3 h-100">
+      <div class="d-flex justify-content-between align-items-start flex-wrap">
+        <h6 class="mb-1">{{ item.title }}</h6>
+        <span class="badge-category">{{ item.bin }}</span>
+      </div>
+      <ul class="small mb-2">
+        {% for step in item.steps %}<li>{{ step }}</li>{% endfor %}
+      </ul>
+      <p class="small text-danger mb-2">{{ item.do_not }}</p>
+      {% if nearby_map.get(item.category) %}
+      <a href="/nearby-centres?category={{ nearby_map[item.category] }}" class="btn btn-outline-success btn-sm">
+        {{ icon("map-pin") }} {{ t("lookup.find_nearby") }}
+      </a>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+<p id="no-item-results" class="text-muted" style="display:none">{{ t("lookup.no_results") }}</p>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const itemSearch = document.getElementById('item-search');
+const categoryFilter = document.getElementById('item-category-filter');
+const itemCards = Array.from(document.querySelectorAll('.item-card'));
+const noResults = document.getElementById('no-item-results');
+
+function applyItemFilters() {
+  const q = itemSearch.value.toLowerCase().trim();
+  const cat = categoryFilter.value;
+  let visible = 0;
+  itemCards.forEach(card => {
+    const matchesText = !q || card.dataset.title.includes(q) || card.dataset.keywords.includes(q);
+    const matchesCat = !cat || card.dataset.category === cat;
+    const show = matchesText && matchesCat;
+    card.style.display = show ? '' : 'none';
+    if (show) visible++;
+  });
+  noResults.style.display = visible === 0 ? 'block' : 'none';
+}
+
+itemSearch.addEventListener('input', applyItemFilters);
+categoryFilter.addEventListener('change', applyItemFilters);
+</script>
+{% endblock %}

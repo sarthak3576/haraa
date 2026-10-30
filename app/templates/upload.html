@@ -1,0 +1,210 @@
+{% extends "base.html" %}
+{% block title %}Scan an item{% endblock %}
+{% block content %}
+<h2 class="mb-1">{{ icon("camera", "icon-lg") }} What is this, and where does it go?</h2>
+<p class="text-muted">Upload a photo and we'll tell you which bin it belongs in.</p>
+
+{% if logged %}
+<div class="alert alert-success">Logged to your dashboard. <a href="/dashboard">View dashboard</a></div>
+{% endif %}
+
+{% if error %}
+<div class="alert alert-danger">{{ error }}</div>
+{% endif %}
+
+<div class="eco-card p-4 mb-4">
+  <div class="mb-3 d-flex gap-2">
+    <button type="button" class="btn btn-outline-success btn-sm" id="tab-file-btn">{{ icon("upload") }} Upload a photo</button>
+    <button type="button" class="btn btn-outline-success btn-sm" id="tab-camera-btn">{{ icon("camera") }} Use camera</button>
+  </div>
+
+  <form method="post" action="/upload" enctype="multipart/form-data" id="upload-form">
+    <div class="mb-3" id="file-input-wrap">
+      <label class="form-label">Choose a photo of the item (JPEG, PNG, WebP, or HEIC -- iPhone photos are converted automatically)</label>
+      <input class="form-control" type="file" name="photo" id="photo-input" accept="image/*" required>
+      <p id="heic-status" class="form-text"></p>
+    </div>
+
+    <div class="mb-3" id="camera-wrap" style="display:none">
+      <video id="camera-video" autoplay playsinline style="width: 100%; max-width: 420px; border-radius: 0.5rem; background: #000;"></video>
+      <div class="mt-2 d-flex gap-2">
+        <button type="button" class="btn btn-outline-success btn-sm" id="capture-btn">Capture</button>
+        <button type="button" class="btn btn-outline-secondary btn-sm" id="stop-camera-btn">Cancel</button>
+      </div>
+      <p id="camera-status" class="form-text"></p>
+      <img id="capture-preview" alt="" style="max-width: 160px; border-radius: 0.5rem; display:none;" class="mt-2">
+    </div>
+    <canvas id="capture-canvas" style="display:none"></canvas>
+
+    <button type="submit" class="btn btn-success" id="upload-btn">
+      <span id="upload-btn-text">Identify it</span>
+      <span id="upload-spinner" class="spinner-eco ms-2" style="display:none"></span>
+    </button>
+  </form>
+</div>
+<script>
+  document.getElementById('upload-form').addEventListener('submit', function () {
+    document.getElementById('upload-spinner').style.display = 'inline-block';
+    document.getElementById('upload-btn').setAttribute('disabled', 'disabled');
+  });
+
+  const fileInputWrap = document.getElementById('file-input-wrap');
+  const cameraWrap = document.getElementById('camera-wrap');
+  const photoInput = document.getElementById('photo-input');
+  const heicStatus = document.getElementById('heic-status');
+  const uploadBtn = document.getElementById('upload-btn');
+
+  // --- HEIC/HEIF -> JPEG, client-side (iPhone photos are HEIC by default,
+  // and the server here doesn't always have HEIC decoding available -- see
+  // docs/ARCHITECTURE.md). heic2any is bundled locally (app/static/js/),
+  // loaded lazily only when a HEIC/HEIF file is actually picked.
+  let heic2anyLoadPromise = null;
+  function loadHeic2any() {
+    if (window.heic2any) return Promise.resolve();
+    if (!heic2anyLoadPromise) {
+      heic2anyLoadPromise = new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = '/static/js/heic2any.min.js';
+        script.onload = resolve;
+        script.onerror = () => reject(new Error('script failed to load'));
+        document.head.appendChild(script);
+      });
+    }
+    return heic2anyLoadPromise;
+  }
+
+  function looksLikeHeic(file) {
+    const type = (file.type || '').toLowerCase();
+    const name = (file.name || '').toLowerCase();
+    return type === 'image/heic' || type === 'image/heif'
+      || name.endsWith('.heic') || name.endsWith('.heif');
+  }
+
+  photoInput.addEventListener('change', async () => {
+    const file = photoInput.files[0];
+    if (!file || !looksLikeHeic(file)) {
+      heicStatus.textContent = '';
+      return;
+    }
+
+    heicStatus.textContent = 'Converting HEIC photo to JPEG in your browser...';
+    uploadBtn.setAttribute('disabled', 'disabled');
+    try {
+      await loadHeic2any();
+      const result = await window.heic2any({ blob: file, toType: 'image/jpeg', quality: 0.9 });
+      const jpegBlob = Array.isArray(result) ? result[0] : result;
+      const newName = file.name.replace(/\.(heic|heif)$/i, '') + '.jpg';
+      const jpegFile = new File([jpegBlob], newName, { type: 'image/jpeg' });
+      const dataTransfer = new DataTransfer();
+      dataTransfer.items.add(jpegFile);
+      photoInput.files = dataTransfer.files;
+      heicStatus.textContent = 'Converted to JPEG -- ready to upload.';
+    } catch (err) {
+      heicStatus.textContent = "Couldn't convert this HEIC photo in your browser (" + err.message + "). "
+        + "Please re-save it as JPEG/PNG (e.g. a screenshot, or your phone's \"Share\" -> convert option) and choose it again.";
+      photoInput.value = '';
+    } finally {
+      uploadBtn.removeAttribute('disabled');
+    }
+  });
+
+  const video = document.getElementById('camera-video');
+  const canvas = document.getElementById('capture-canvas');
+  const cameraStatus = document.getElementById('camera-status');
+  const capturePreview = document.getElementById('capture-preview');
+  let mediaStream = null;
+
+  function stopCamera() {
+    if (mediaStream) {
+      mediaStream.getTracks().forEach(track => track.stop());
+      mediaStream = null;
+    }
+  }
+
+  document.getElementById('tab-file-btn').addEventListener('click', () => {
+    stopCamera();
+    cameraWrap.style.display = 'none';
+    fileInputWrap.style.display = '';
+    photoInput.required = true;
+  });
+
+  document.getElementById('tab-camera-btn').addEventListener('click', async () => {
+    fileInputWrap.style.display = 'none';
+    cameraWrap.style.display = '';
+    photoInput.required = false;
+    capturePreview.style.display = 'none';
+    cameraStatus.textContent = 'Requesting camera access...';
+    try {
+      mediaStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+      video.srcObject = mediaStream;
+      video.style.display = '';
+      cameraStatus.textContent = '';
+    } catch (err) {
+      cameraStatus.textContent = "Couldn't access the camera. Please allow camera access, or use file upload instead.";
+    }
+  });
+
+  document.getElementById('stop-camera-btn').addEventListener('click', () => {
+    stopCamera();
+    cameraWrap.style.display = 'none';
+    fileInputWrap.style.display = '';
+    photoInput.required = true;
+  });
+
+  document.getElementById('capture-btn').addEventListener('click', () => {
+    if (!mediaStream) return;
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext('2d').drawImage(video, 0, 0);
+    canvas.toBlob(blob => {
+      const file = new File([blob], 'camera-capture.jpg', { type: 'image/jpeg' });
+      const dataTransfer = new DataTransfer();
+      dataTransfer.items.add(file);
+      photoInput.files = dataTransfer.files;
+      capturePreview.src = canvas.toDataURL('image/jpeg');
+      capturePreview.style.display = '';
+      video.style.display = 'none';
+      cameraStatus.textContent = 'Photo captured. Click "Identify it" below, or capture again.';
+      stopCamera();
+    }, 'image/jpeg', 0.9);
+  });
+</script>
+
+{% if result %}
+<div class="eco-card p-4">
+  <h5>Looks like: <span class="badge-category">{{ result.category|capitalize }}</span></h5>
+  <div class="confidence-bar mb-2 mt-3" style="max-width: 320px;">
+    <div style="width: {{ result.confidence }}%;"></div>
+  </div>
+  <p class="small text-muted">{{ result.confidence }}% sure</p>
+
+  <form method="post" action="/upload/log" class="row g-2 align-items-end mt-2">
+    <div class="col-auto">
+      <label class="form-label">Not quite right? Pick the category</label>
+      <select name="category" class="form-select">
+        {% for cat in ["plastic","paper","metal","glass","organic","e-waste","other"] %}
+        <option value="{{ cat }}" {% if cat == result.category %}selected{% endif %}>{{ cat|capitalize }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-auto">
+      <label class="form-label">Weight (kg)</label>
+      <input type="number" step="0.01" min="0.01" name="weight_kg" value="{{ default_weight }}" class="form-control">
+    </div>
+    <div class="col-auto">
+      <button type="submit" class="btn btn-outline-success">Log to dashboard</button>
+    </div>
+    <div class="col-auto">
+      <a href="/disposal-guide#{{ result.category }}" class="btn btn-outline-secondary">How to prepare it</a>
+    </div>
+    {% if nearby_map.get(result.category) %}
+    <div class="col-auto">
+      <a href="/nearby-centres?category={{ nearby_map[result.category] }}" class="btn btn-outline-success">
+        {{ icon("map-pin") }} Find a place near me
+      </a>
+    </div>
+    {% endif %}
+  </form>
+</div>
+{% endif %}
+{% endblock %}

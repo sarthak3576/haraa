@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+{% block title %}Segregation game{% endblock %}
+{% block content %}
+<h2 class="mb-1">{{ icon("gamepad-2", "icon-lg") }} Segregation game</h2>
+<p class="text-muted">Drag each item into the right bin before the timer runs out. Your best score: <strong id="best-score-display">{{ best_score }}</strong>.</p>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div><strong>Time left:</strong> <span id="game-timer">60</span>s</div>
+  <div><strong>Score:</strong> <span id="game-score">0</span> / <span id="game-attempted">0</span></div>
+</div>
+
+<div id="game-area">
+  <div class="eco-card p-4 text-center mb-4">
+    <div id="current-item" draggable="true" class="d-inline-block px-4 py-3" style="border: 2px dashed var(--color-forest); border-radius: 0.75rem; cursor: grab; font-weight: 600;">
+      Click "Start" to begin
+    </div>
+  </div>
+
+  <div class="row g-2 mb-3" id="bin-row">
+    {% for b in bins %}
+    <div class="col">
+      <div class="eco-card p-3 text-center bin-dropzone" data-bin="{{ b }}" style="min-height: 90px; cursor: pointer;">
+        {{ bin_labels[b] }}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="text-center">
+    <button type="button" class="btn btn-success" id="start-game-btn">Start game</button>
+  </div>
+</div>
+
+<div id="game-feedback" class="text-center mt-3 fw-bold"></div>
+
+<div id="game-over" class="eco-card p-4 text-center mt-3" style="display:none">
+  <h4>Time's up!</h4>
+  <p>You scored <strong id="final-score">0</strong>. Best score: <strong id="final-best">0</strong>.</p>
+  <button type="button" class="btn btn-success" id="play-again-btn">Play again</button>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const ALL_ITEMS = {{ items_json|safe }};
+const ROUND_SIZE = 15;
+const GAME_SECONDS = 60;
+
+let roundItems = [];
+let currentIndex = 0;
+let score = 0;
+let attempted = 0;
+let timerInterval = null;
+let selectedForClick = false;
+
+const currentItemEl = document.getElementById('current-item');
+const timerEl = document.getElementById('game-timer');
+const scoreEl = document.getElementById('game-score');
+const attemptedEl = document.getElementById('game-attempted');
+const feedbackEl = document.getElementById('game-feedback');
+const startBtn = document.getElementById('start-game-btn');
+const gameOverEl = document.getElementById('game-over');
+const gameAreaEl = document.getElementById('game-area');
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function showNextItem() {
+  if (currentIndex >= roundItems.length) {
+    endGame();
+    return;
+  }
+  currentItemEl.textContent = roundItems[currentIndex].title;
+  currentItemEl.dataset.bin = roundItems[currentIndex].bin;
+}
+
+function handleAnswer(chosenBin) {
+  if (currentIndex >= roundItems.length) return;
+  const correctBin = roundItems[currentIndex].bin;
+  attempted++;
+  if (chosenBin === correctBin) {
+    score++;
+    feedbackEl.textContent = 'Correct!';
+    feedbackEl.style.color = 'var(--color-forest)';
+  } else {
+    feedbackEl.textContent = `Not quite. That one goes in ${correctBin}.`;
+    feedbackEl.style.color = 'var(--color-clay)';
+  }
+  scoreEl.textContent = score;
+  attemptedEl.textContent = attempted;
+  currentIndex++;
+  setTimeout(() => { feedbackEl.textContent = ''; showNextItem(); }, 500);
+}
+
+function startGame() {
+  roundItems = shuffle(ALL_ITEMS).slice(0, ROUND_SIZE);
+  currentIndex = 0;
+  score = 0;
+  attempted = 0;
+  scoreEl.textContent = '0';
+  attemptedEl.textContent = '0';
+  gameOverEl.style.display = 'none';
+  gameAreaEl.style.display = '';
+  startBtn.style.display = 'none';
+  let timeLeft = GAME_SECONDS;
+  timerEl.textContent = timeLeft;
+  showNextItem();
+
+  timerInterval = setInterval(() => {
+    timeLeft--;
+    timerEl.textContent = timeLeft;
+    if (timeLeft <= 0) endGame();
+  }, 1000);
+}
+
+async function endGame() {
+  clearInterval(timerInterval);
+  gameAreaEl.style.display = 'none';
+  gameOverEl.style.display = '';
+  document.getElementById('final-score').textContent = score;
+  startBtn.style.display = '';
+
+  try {
+    const res = await fetch('/api/segregation-game/score', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({score})
+    });
+    const data = await res.json();
+    document.getElementById('final-best').textContent = data.best_score;
+    document.getElementById('best-score-display').textContent = data.best_score;
+  } catch (e) {
+    document.getElementById('final-best').textContent = '?';
+  }
+}
+
+startBtn.addEventListener('click', startGame);
+document.getElementById('play-again-btn').addEventListener('click', startGame);
+
+// Drag and drop
+currentItemEl.addEventListener('dragstart', (e) => {
+  e.dataTransfer.setData('text/plain', currentItemEl.dataset.bin || '');
+});
+
+document.querySelectorAll('.bin-dropzone').forEach(zone => {
+  zone.addEventListener('dragover', (e) => e.preventDefault());
+  zone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    handleAnswer(zone.dataset.bin);
+  });
+  // click fallback (also works on touch devices)
+  zone.addEventListener('click', () => {
+    if (currentIndex < roundItems.length) handleAnswer(zone.dataset.bin);
+  });
+});
+</script>
+{% endblock %}

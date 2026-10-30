@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Sorting guide{% endblock %}
+{% block content %}
+<h2 class="mb-1">{{ icon("compass", "icon-lg") }} {{ t("guide.title") }}</h2>
+<p class="text-muted mb-4">{{ t("guide.subtitle") }}</p>
+
+{% for item in guide %}
+<div class="eco-card p-3 mb-3" id="{{ item.category }}">
+  <div class="d-flex justify-content-between align-items-center flex-wrap">
+    <h5 class="mb-1">{{ t("category." + item.category) }}</h5>
+    <span class="badge-category">{{ t("guide.bin_prefix") }}: {{ item.bin }}</span>
+  </div>
+  <div class="row mt-2">
+    <div class="col-md-6">
+      <h6 class="text-success">{{ icon("check-circle") }} {{ t("guide.do") }}</h6>
+      <ul>
+        {% for d in item.dos %}<li>{{ d }}</li>{% endfor %}
+      </ul>
+    </div>
+    <div class="col-md-6">
+      <h6 class="text-danger">{{ icon("x") }} {{ t("guide.dont") }}</h6>
+      <ul>
+        {% for d in item.donts %}<li>{{ d }}</li>{% endfor %}
+      </ul>
+    </div>
+  </div>
+  {% if nearby_map.get(item.category) %}
+  <a href="/nearby-centres?category={{ nearby_map[item.category] }}" class="btn btn-outline-success btn-sm mt-2">
+    {{ icon("map-pin") }} {{ t("lookup.find_nearby") }}
+  </a>
+  {% endif %}
+</div>
+{% endfor %}
+{% endblock %}

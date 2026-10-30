@@ -1,0 +1,26 @@
+version = 0.1
+
+[default]
+[default.build.parameters]
+cached = true
+parallel = true
+
+[default.validate.parameters]
+lint = true
+
+[default.deploy.parameters]
+stack_name = "haraa-demo"
+region = "ap-south-1"
+capabilities = "CAPABILITY_IAM"
+resolve_s3 = true
+confirm_changeset = false
+fail_on_empty_changeset = false
+disable_rollback = false
+# Stage / SessionSecret / GeminiParameterName are passed fresh on every
+# `sam deploy` by scripts/deploy.sh -- never stored here (SessionSecret is
+# generated new each run; nothing secret lives in this file).
+
+[default.delete.parameters]
+stack_name = "haraa-demo"
+region = "ap-south-1"
+no_prompts = true

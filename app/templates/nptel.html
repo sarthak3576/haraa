@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Watch & learn{% endblock %}
+{% block content %}
+<h2 class="mb-1">{{ icon("graduation-cap", "icon-lg") }} Courses worth your time</h2>
+<div class="alert alert-info">{{ note }}</div>
+
+<div class="row g-3">
+  {% for course in courses %}
+  <div class="col-md-6">
+    <div class="eco-card hoverable p-3 h-100">
+      <h5>{{ course.title }}</h5>
+      <p class="mb-1 small text-muted">{{ course.institute }} &middot; {{ course.instructor }}</p>
+      <p>{{ course.description }}</p>
+      <a href="{{ course.url }}" target="_blank" rel="noopener noreferrer" class="btn btn-outline-success btn-sm">
+        {{ icon("arrow-right") }} {{ course.link_type }}
+      </a>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

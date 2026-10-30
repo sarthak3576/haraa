@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}Nearby centres{% endblock %}
+{% block content %}
+<h2 class="mb-1">{{ icon("map-pin", "icon-lg") }} {{ t("nearby.title") }}</h2>
+<p class="text-muted mb-4">{{ t("nearby.subtitle") }}</p>
+
+<div class="eco-card p-3 mb-4">
+  <label for="location-input" class="form-label">{{ t("nearby.location_label") }}</label>
+  <div class="d-flex gap-2 flex-wrap">
+    <input type="text" id="location-input" class="form-control" style="max-width: 320px;" placeholder="e.g. Koramangala, Bengaluru">
+    <button type="button" id="use-location-btn" class="btn btn-outline-success">{{ icon("compass") }} {{ t("nearby.use_location") }}</button>
+  </div>
+  <div id="location-status" class="form-text"></div>
+</div>
+
+<div class="row g-3">
+  {% for cat in categories %}
+  <div class="col-md-6 col-lg-4">
+    <div class="eco-card p-3 h-100 category-card {% if cat.id == preselected_category %}border-forest{% endif %}" id="cat-{{ cat.id }}" data-term="{{ cat.search_term }}">
+      <h6>{{ cat.label }}</h6>
+      <p class="small mb-1"><strong>{{ t("nearby.bring") }}:</strong> {{ cat.bring }}</p>
+      <p class="small mb-1"><strong>{{ t("nearby.dont_bring") }}:</strong> {{ cat.dont_bring }}</p>
+      <p class="small text-muted mb-3">{{ cat.tip }}</p>
+      <button type="button" class="btn btn-success btn-sm find-centres-btn" data-term="{{ cat.search_term }}">
+        {{ icon("search") }} {{ t("nearby.find_centres") }}
+      </button>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<p class="text-muted small mt-4">{{ t("nearby.hours_vary") }}</p>
+{% endblock %}
+
+{% block scripts %}
+<style>.border-forest { border-color: var(--color-forest) !important; border-width: 2px; }</style>
+<script>
+const MAPS_BASE = 'https://www.google.com/maps/search/?api=1&query=';
+const locationInput = document.getElementById('location-input');
+const useLocationBtn = document.getElementById('use-location-btn');
+const locationStatus = document.getElementById('location-status');
+
+let currentCoords = null; // kept only in memory for this page view, never stored
+
+try {
+  const saved = localStorage.getItem('haraa_last_location');
+  if (saved) locationInput.value = saved;
+} catch (e) {}
+
+locationInput.addEventListener('input', () => {
+  currentCoords = null; // typing a place overrides any geolocation fix
+  try { localStorage.setItem('haraa_last_location', locationInput.value); } catch (e) {}
+});
+
+useLocationBtn.addEventListener('click', () => {
+  if (!navigator.geolocation) {
+    locationStatus.textContent = "Your browser doesn't support location access. Please type your location instead.";
+    return;
+  }
+  locationStatus.textContent = 'Requesting location access...';
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      currentCoords = { lat: position.coords.latitude.toFixed(5), lng: position.coords.longitude.toFixed(5) };
+      locationStatus.textContent = 'Using your current location for this search.';
+    },
+    (error) => {
+      currentCoords = null;
+      locationStatus.textContent = "Couldn't get your location (permission denied or unavailable). Type your area or PIN code above instead.";
+    },
+    { timeout: 10000 }
+  );
+});
+
+function buildMapsUrl(term) {
+  let query;
+  if (currentCoords) {
+    query = `${term} near ${currentCoords.lat},${currentCoords.lng}`;
+  } else if (locationInput.value.trim()) {
+    query = `${term} near ${locationInput.value.trim()}`;
+  } else {
+    query = term;
+  }
+  return MAPS_BASE + encodeURIComponent(query);
+}
+
+document.querySelectorAll('.find-centres-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const url = buildMapsUrl(btn.dataset.term);
+    window.open(url, '_blank', 'noopener,noreferrer');
+  });
+});
+
+{% if preselected_category %}
+(function () {
+  const el = document.getElementById('cat-{{ preselected_category }}');
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+})();
+{% endif %}
+</script>
+{% endblock %}

@@ -1,0 +1,16 @@
+# Dependencies for the "web" and "chatbot" Lambda functions only (Makefile at
+# the repo root installs this cross-platform, no Docker -- see docs/ARCHITECTURE.md).
+# Deliberately excludes torch/torchvision/pillow-heif (see requirements.txt).
+# The other (lighter) API functions rely on the Lambda Python runtime's own
+# preinstalled boto3/botocore instead of this layer; boto3/botocore are
+# pinned here only to guarantee bedrock-runtime support for web/chatbot.
+fastapi>=0.115
+mangum>=0.17
+itsdangerous>=2.2
+python-multipart>=0.0.9
+jinja2>=3.1
+pillow>=10.4
+python-dotenv>=1.0
+google-genai>=1.0
+boto3>=1.35
+botocore>=1.35

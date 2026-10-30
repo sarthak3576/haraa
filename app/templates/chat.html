@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block title %}Ask Haraa{% endblock %}
+{% block content %}
+<h2 class="mb-1">{{ icon("message-circle", "icon-lg") }} Ask about anything you need to throw away</h2>
+<p class="text-muted">Plastic, batteries, medicines, e-waste, composting, or which bin to use. Just ask.</p>
+
+<div id="chat-log" class="mb-3"></div>
+
+<div class="mb-2" id="suggestions"></div>
+
+<form id="chat-form" class="d-flex gap-2">
+  <input id="chat-input" type="text" class="form-control" placeholder="Ask about recycling, composting, e-waste..." autocomplete="off" required>
+  <button type="submit" class="btn btn-success">Send</button>
+</form>
+<div class="d-flex justify-content-between">
+  <div id="chat-status" class="form-text text-danger"></div>
+  <button type="button" id="clear-chat-btn" class="btn btn-link btn-sm text-muted p-0">Clear conversation</button>
+</div>
+
+<div id="provider-health" class="mt-4 pt-2 border-top small text-muted">
+  <span class="spinner-eco"></span> Checking chat status...
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const HISTORY = {{ history_json|safe }};
+const SUGGESTIONS = [
+  "How do I recycle plastic bottles?",
+  "What bin colour is used for wet waste in India?",
+  "How do I dispose of old batteries?",
+  "What's the difference between reduce, reuse, and recycle?",
+  "How do I start composting at home?",
+];
+
+const log = document.getElementById('chat-log');
+const form = document.getElementById('chat-form');
+const input = document.getElementById('chat-input');
+const status = document.getElementById('chat-status');
+const suggestionsEl = document.getElementById('suggestions');
+
+function addBubble(role, text, offline) {
+  const wrap = document.createElement('div');
+  const div = document.createElement('div');
+  div.className = 'chat-bubble ' + role;
+  div.textContent = text;
+  wrap.appendChild(div);
+  if (offline) {
+    const badge = document.createElement('div');
+    badge.className = 'offline-badge';
+    badge.textContent = 'Offline mode';
+    wrap.appendChild(badge);
+  }
+  log.appendChild(wrap);
+  log.scrollTop = log.scrollHeight;
+  return wrap;
+}
+
+function renderSuggestions() {
+  suggestionsEl.innerHTML = '';
+  SUGGESTIONS.forEach(q => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'suggested-q';
+    btn.textContent = q;
+    btn.addEventListener('click', () => { input.value = q; form.requestSubmit(); });
+    suggestionsEl.appendChild(btn);
+  });
+}
+
+if (HISTORY.length > 0) {
+  HISTORY.forEach(turn => {
+    addBubble(turn.role, turn.content, turn.provider === 'offline');
+  });
+} else {
+  addBubble('assistant', "Hi! Ask me anything about recycling, composting, or e-waste disposal, or tap a suggestion below.");
+}
+renderSuggestions();
+
+document.getElementById('clear-chat-btn').addEventListener('click', async () => {
+  try {
+    await fetch('/api/chat/clear', { method: 'POST' });
+  } catch (err) { /* ignore, clear the view regardless */ }
+  log.innerHTML = '';
+  addBubble('assistant', "Hi! Ask me anything about recycling, composting, or e-waste disposal, or tap a suggestion below.");
+});
+
+async function loadProviderHealth() {
+  const el = document.getElementById('provider-health');
+  try {
+    const res = await fetch('/api/chatbot/health');
+    if (res.status === 401) { window.location.href = '/login'; return; }
+    const data = await res.json();
+    const labels = {gemini: 'Gemini', bedrock: 'Bedrock', offline: 'Offline assistant'};
+    const parts = ['gemini', 'bedrock', 'offline'].map(name => {
+      const info = data[name];
+      const dot = '<span class="status-dot ' + (info.available ? "status-dot-ok" : "status-dot-bad") + '"></span>';
+      const text = info.available ? 'working' : (info.reason || 'unavailable');
+      return `<span class="me-3">${dot} <strong>${labels[name]}</strong>: ${text}</span>`;
+    });
+    el.innerHTML = '<strong>Chat status:</strong> ' + parts.join('');
+  } catch (err) {
+    el.textContent = 'Could not check chat status right now.';
+  }
+}
+loadProviderHealth();
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const message = input.value.trim();
+  if (!message) return;
+  addBubble('user', message);
+  input.value = '';
+
+  const typingBubble = addBubble('assistant typing', 'Typing...');
+  status.textContent = '';
+
+  try {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({message})
+    });
+    typingBubble.remove();
+    if (res.status === 401) {
+      window.location.href = '/login';
+      return;
+    }
+    const data = await res.json();
+    addBubble('assistant', data.reply, data.provider === 'offline');
+  } catch (err) {
+    typingBubble.remove();
+    status.textContent = "That message didn't go through. Please try again.";
+  }
+});
+</script>
+{% endblock %}

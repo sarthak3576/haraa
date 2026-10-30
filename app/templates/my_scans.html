@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}My scans{% endblock %}
+{% block content %}
+<h2 class="mb-1">{{ icon("clock", "icon-lg") }} My scans</h2>
+<p class="text-muted mb-4">Your last {{ scans|length }} photo scans.</p>
+
+{% if error %}
+<div class="alert alert-danger">Couldn't load your scan history right now. ({{ error }})</div>
+{% elif not scans %}
+<div class="empty-state">
+  <img src="/static/illustrations/empty.svg" alt="" width="100">
+  <p class="mb-0">No scans yet. <a href="/upload">Scan an item</a> to get started.</p>
+</div>
+{% else %}
+<div class="row g-3">
+  {% for scan in scans %}
+  <div class="col-md-6 col-lg-4">
+    <div class="eco-card p-3 h-100">
+      <div class="d-flex gap-3 align-items-start">
+        <img src="data:image/jpeg;base64,{{ scan.thumbnail_b64 }}" alt="" width="64" height="64" style="object-fit: cover; border-radius: 0.5rem;">
+        <div>
+          <span class="badge-category">{{ scan.category|capitalize }}</span>
+          <p class="small text-muted mb-1 mt-1">{{ scan.confidence }}% sure</p>
+          <p class="small text-muted mb-0">{{ scan.created_at[:16]|replace("T", " ") }}</p>
+        </div>
+      </div>
+      {% if scan.logged %}
+      <p class="small text-success mt-2 mb-0">{{ icon("check-circle") }} Logged to dashboard</p>
+      {% else %}
+      <form method="post" action="/my-scans/log" class="mt-2 d-flex gap-2 align-items-end">
+        <input type="hidden" name="scan_id" value="{{ scan.scan_id }}">
+        <div>
+          <label class="form-label small mb-0">Weight (kg)</label>
+          <input type="number" step="0.01" min="0.01" name="weight_kg" value="{{ default_weight }}" class="form-control form-control-sm" style="width: 90px;">
+        </div>
+        <button type="submit" class="btn btn-outline-success btn-sm">Log to dashboard</button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

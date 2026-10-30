@@ -1,0 +1,190 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center flex-wrap mb-4">
+  <h2 class="mb-0">{{ icon("bar-chart-2", "icon-lg") }} Your dashboard</h2>
+  <a href="/dashboard/export.csv" class="btn btn-outline-success btn-sm">{{ icon("download") }} Export CSV</a>
+</div>
+
+{% if error %}
+<div class="alert alert-danger">
+  Your dashboard data couldn't be loaded right now. ({{ error }})<br>
+  If you're the site owner, check that setup has been completed.
+</div>
+{% else %}
+
+<div class="row g-3 mb-4">
+  <div class="col-md-3 col-6">
+    <div class="stat-tile">
+      <div class="value">{{ stats.total_items }}</div>
+      <div class="text-muted">Items logged</div>
+    </div>
+  </div>
+  <div class="col-md-3 col-6">
+    <div class="stat-tile">
+      <div class="value">{{ "%.2f"|format(stats.total_kg) }} kg</div>
+      <div class="text-muted">Total waste diverted</div>
+    </div>
+  </div>
+  <div class="col-md-3 col-6">
+    <div class="stat-tile">
+      <div class="value">{{ "%.2f"|format(stats.total_co2_saved_kg) }} kg</div>
+      <div class="text-muted">Estimated CO2 saved</div>
+    </div>
+  </div>
+  <div class="col-md-3 col-6">
+    <div class="stat-tile">
+      <div class="value">{{ recycling_rate }}%</div>
+      <div class="text-muted">Recycling rate</div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="eco-card p-3 text-center h-100 d-flex flex-column justify-content-center">
+      <div class="value d-flex align-items-center justify-content-center gap-2" style="font-size:2rem;">{{ icon("flame", "icon-lg") }} {{ streak }}</div>
+      <div class="text-muted">Day streak</div>
+    </div>
+  </div>
+  <div class="col-md-8">
+    <div class="eco-card p-3">
+      <h6>Leaderboard (top contributors)</h6>
+      {% if leaderboard %}
+      <ol class="mb-0">
+        {% for row in leaderboard %}
+        <li>{{ row.user_prefix }} &mdash; {{ row.total_kg }} kg</li>
+        {% endfor %}
+      </ol>
+      {% else %}
+      <p class="text-muted mb-0">No contributors yet.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-6">
+    <div class="eco-card p-3 h-100">
+      <h6>Weekly goal</h6>
+      <p class="small text-muted mb-1">{{ weekly_goal.items_logged }} of {{ weekly_goal.goal_items }} items logged this week</p>
+      <div class="confidence-bar mb-2"><div style="width: {{ weekly_goal.progress_pct }}%;"></div></div>
+      {% if weekly_goal.met %}
+      <p class="small text-success mb-2">{{ icon("check-circle") }} Goal reached this week!</p>
+      {% endif %}
+      <form method="post" action="/dashboard/goal" class="d-flex gap-2 align-items-end">
+        <div>
+          <label class="form-label small mb-0">Set a new weekly goal (items)</label>
+          <input type="number" min="1" name="target_items" value="{{ weekly_goal.goal_items }}" class="form-control form-control-sm" style="width: 90px;">
+        </div>
+        <button type="submit" class="btn btn-outline-success btn-sm">Save</button>
+      </form>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="eco-card p-3 h-100">
+      <h6>7-day challenges</h6>
+      <ul class="list-unstyled small mb-0">
+        {% for c in challenges %}
+        <li class="mb-2">
+          {% if c.completed %}{{ icon("check-circle") }}{% else %}{{ icon("clock") }}{% endif %}
+          <strong>{{ c.title }}</strong> &mdash; {{ c.progress }}
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="eco-card p-3 mb-4">
+  <h6>{{ icon("award") }} Badges</h6>
+  <div class="d-flex flex-wrap gap-2">
+    {% for b in badges %}
+    <span class="badge-subtle" title="{{ b.description }}">{{ icon("trophy") }} {{ b.title }}</span>
+    {% endfor %}
+    {% if not badges %}
+    <p class="text-muted small mb-0">Log your first item to start earning badges.</p>
+    {% endif %}
+  </div>
+</div>
+
+<div class="eco-card p-3 mb-4">
+  <h5>Waste by category over time</h5>
+  <canvas id="trend-chart" height="90"></canvas>
+</div>
+
+<div class="eco-card p-3 mb-4">
+  <h5>By category (kg, all time)</h5>
+  <div class="row">
+    {% for category, kg in stats.by_category_kg.items() %}
+    <div class="col-6 col-md-4 col-lg-2 mb-2">
+      <strong>{{ category|capitalize }}</strong><br>
+      {{ "%.2f"|format(kg) }} kg
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="eco-card p-3">
+  <h5>Recent activity</h5>
+  {% if events %}
+  <table class="table table-sm mt-2">
+    <thead>
+      <tr><th>When</th><th>Category</th><th>Weight (kg)</th><th>CO2 saved (kg)</th><th>Source</th><th>Logged by</th></tr>
+    </thead>
+    <tbody>
+      {% for e in events %}
+      <tr>
+        <td>{{ e.created_at }}</td>
+        <td>{{ e.category|capitalize }}</td>
+        <td>{{ "%.2f"|format(e.weight_kg) }}</td>
+        <td>{{ "%.2f"|format(e.co2_saved_kg) }}</td>
+        <td>{{ e.source }}</td>
+        <td>{{ e.user_email }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state">
+    <img src="/static/illustrations/empty.svg" alt="" width="100">
+    <p class="mb-0">Nothing logged yet. Try <a href="/upload">scanning an item</a>.</p>
+  </div>
+  {% endif %}
+</div>
+
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if not error %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script>
+const series = {{ series_json|safe }};
+const colors = {
+  plastic: '#1f3d2b', paper: '#b2613e', metal: '#8e8e93',
+  glass: '#6f9c82', organic: '#d9a441', 'e-waste': '#7a4a6b', other: '#a69f90'
+};
+
+const datasets = Object.keys(series.categories).map(cat => ({
+  label: cat.charAt(0).toUpperCase() + cat.slice(1),
+  data: series.categories[cat],
+  backgroundColor: colors[cat] || '#999',
+  stack: 'waste',
+}));
+
+if (series.dates.length > 0) {
+  new Chart(document.getElementById('trend-chart'), {
+    type: 'bar',
+    data: { labels: series.dates, datasets: datasets },
+    options: {
+      responsive: true,
+      scales: { x: { stacked: true }, y: { stacked: true, title: { display: true, text: 'kg' } } },
+    },
+  });
+} else {
+  document.getElementById('trend-chart').outerHTML = '<p class="text-muted">Not enough data yet for a trend chart.</p>';
+}
+</script>
+{% endif %}
+{% endblock %}

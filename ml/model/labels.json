@@ -1,0 +1,30 @@
+{
+  "classes": [
+    "cardboard",
+    "glass",
+    "metal",
+    "paper",
+    "plastic",
+    "trash"
+  ],
+  "class_to_dashboard_category": {
+    "cardboard": "paper",
+    "glass": "glass",
+    "metal": "metal",
+    "paper": "paper",
+    "plastic": "plastic",
+    "trash": "other"
+  },
+  "image_size": 224,
+  "normalize_mean": [
+    0.485,
+    0.456,
+    0.406
+  ],
+  "normalize_std": [
+    0.229,
+    0.224,
+    0.225
+  ],
+  "architecture": "mobilenet_v3_large"
+}

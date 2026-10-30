@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}Home{% endblock %}
+{% block content %}
+{% if collection_banner %}
+<div class="alert alert-success">{{ icon("calendar") }} {{ collection_banner }} <a href="/collection-reminders">Manage reminders</a></div>
+{% endif %}
+<div class="hero">
+  <img src="/static/illustrations/bins.svg" alt="" class="hero-illustration d-none d-md-block" width="200">
+  <h1>{{ t("home.hero_title") }}</h1>
+  <p class="text-muted">{{ t("home.hero_subtitle") }}</p>
+  <a href="/upload" class="btn-cta">{{ icon("camera") }} {{ t("home.hero_cta") }}</a>
+</div>
+
+<h4 class="mb-3">{{ t("home.how_it_works") }}</h4>
+<div class="step-row mb-5">
+  <div class="eco-card step-card">
+    <span class="step-number">01</span>
+    <h6>{{ t("home.step1_title") }}</h6>
+    <p class="text-muted small mb-0">{{ t("home.step1_desc") }}</p>
+  </div>
+  <div class="eco-card step-card">
+    <span class="step-number">02</span>
+    <h6>{{ t("home.step2_title") }}</h6>
+    <p class="text-muted small mb-0">{{ t("home.step2_desc") }}</p>
+  </div>
+  <div class="eco-card step-card">
+    <span class="step-number">03</span>
+    <h6>{{ t("home.step3_title") }}</h6>
+    <p class="text-muted small mb-0">{{ t("home.step3_desc") }}</p>
+  </div>
+</div>
+
+<h4 class="mb-3">{{ t("home.impact_so_far") }}</h4>
+<div class="row g-3 mb-5">
+  <div class="col-md-4">
+    <div class="stat-tile">
+      <div class="value">{{ stats.total_items }}</div>
+      <div class="text-muted">{{ t("home.items_sorted") }}</div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="stat-tile">
+      <div class="value">{{ "%.1f"|format(stats.total_kg) }} kg</div>
+      <div class="text-muted">{{ t("home.kept_out") }}</div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="stat-tile">
+      <div class="value">{{ "%.1f"|format(stats.total_co2_saved_kg) }} kg</div>
+      <div class="text-muted">{{ t("home.co2_avoided") }}</div>
+    </div>
+  </div>
+</div>
+
+<h4 class="mb-3">{{ t("home.common_mistakes") }}</h4>
+<div class="row g-3">
+  <div class="col-md-4">
+    <div class="eco-card feature-card hoverable">
+      <div class="icon-wrap">{{ icon("package") }}</div>
+      <h6>Milk and curd covers</h6>
+      <p class="text-muted small mb-0">Rinse and dry them first. A greasy cover spoils an entire batch of dry waste.</p>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="eco-card feature-card hoverable">
+      <div class="icon-wrap">{{ icon("leaf") }}</div>
+      <h6>Coconut shells</h6>
+      <p class="text-muted small mb-0">They're compostable, but break down slowly. Chop them up or send them with wet waste collection, not dry.</p>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="eco-card feature-card hoverable">
+      <div class="icon-wrap">{{ icon("pill") }}</div>
+      <h6>Medicine strips</h6>
+      <p class="text-muted small mb-0">The foil-and-plastic blister packs aren't recyclable like paper. Most pharmacies will take expired strips back.</p>
+    </div>
+  </div>
+</div>
+
+<div class="text-center mt-5">
+  <a href="/disposal-guide" class="btn btn-outline-success">{{ t("home.see_guide") }}</a>
+</div>
+{% endblock %}

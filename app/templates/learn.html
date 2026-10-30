@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}Learn{% endblock %}
+{% block content %}
+<h2 class="mb-1">{{ icon("book-open", "icon-lg") }} Learn the basics</h2>
+<p class="text-muted mb-4">Work through each section, then take the 3-question quiz. Your best score per section is saved.</p>
+
+<div class="accordion" id="learn-accordion">
+  {% for section in sections %}
+  <div class="accordion-item eco-card mb-3">
+    <h2 class="accordion-header">
+      <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#sec-{{ section.id }}">
+        {{ section.title }}
+        {% if progress.get(section.id) %}
+        <span class="badge-category ms-2">Best: {{ progress[section.id].best_score }}/{{ progress[section.id].total }}</span>
+        {% endif %}
+      </button>
+    </h2>
+    <div id="sec-{{ section.id }}" class="accordion-collapse collapse" data-bs-parent="#learn-accordion">
+      <div class="accordion-body">
+        <p class="text-muted">{{ section.summary }}</p>
+        <ul>
+          {% for point in section.points %}
+          <li>{{ point }}</li>
+          {% endfor %}
+        </ul>
+
+        <div class="quiz-container mt-3" data-section-id="{{ section.id }}"></div>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const SECTIONS = {{ sections_json|safe }};
+
+function renderQuiz(container, section) {
+  container.innerHTML = '';
+  const form = document.createElement('form');
+  const selected = new Array(section.quiz.length).fill(null);
+
+  section.quiz.forEach((q, qi) => {
+    const block = document.createElement('div');
+    block.className = 'mb-3';
+    const label = document.createElement('p');
+    label.innerHTML = '<strong>' + (qi + 1) + '. ' + q.q + '</strong>';
+    block.appendChild(label);
+
+    q.options.forEach((opt, oi) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'quiz-option';
+      btn.textContent = opt;
+      btn.addEventListener('click', () => {
+        selected[qi] = oi;
+        block.querySelectorAll('.quiz-option').forEach(b => b.classList.remove('btn-outline-success'));
+        btn.style.borderColor = 'var(--color-primary)';
+        block.querySelectorAll('.quiz-option').forEach(b => { if (b !== btn) b.style.borderColor = ''; });
+      });
+      block.appendChild(btn);
+    });
+    form.appendChild(block);
+  });
+
+  const submitBtn = document.createElement('button');
+  submitBtn.type = 'button';
+  submitBtn.className = 'btn btn-success';
+  submitBtn.textContent = 'Submit quiz';
+  const resultDiv = document.createElement('div');
+  resultDiv.className = 'mt-3';
+
+  submitBtn.addEventListener('click', async () => {
+    if (selected.includes(null)) {
+      resultDiv.innerHTML = '<span class="text-danger">Please answer all questions first.</span>';
+      return;
+    }
+    submitBtn.disabled = true;
+    resultDiv.innerHTML = '<span class="spinner-eco"></span> Submitting...';
+    try {
+      const res = await fetch('/api/learn/quiz', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({section_id: section.id, answers: selected})
+      });
+      const data = await res.json();
+      if (data.error) {
+        resultDiv.innerHTML = '<span class="text-danger">' + data.error + '</span>';
+        return;
+      }
+      // highlight correct/wrong
+      form.querySelectorAll('.mb-3').forEach((block, qi) => {
+        const opts = block.querySelectorAll('.quiz-option');
+        opts.forEach((b, oi) => {
+          if (oi === data.correct_answers[qi]) b.classList.add('correct');
+          else if (oi === selected[qi]) b.classList.add('wrong');
+        });
+      });
+      resultDiv.innerHTML = 'Score: <strong>' + data.score + '/' + data.total + '</strong> &mdash; best so far: ' + data.best_score + '/' + data.total;
+    } catch (e) {
+      resultDiv.innerHTML = '<span class="text-danger">Submission failed: ' + e + '</span>';
+    }
+    submitBtn.disabled = false;
+  });
+
+  form.appendChild(submitBtn);
+  form.appendChild(resultDiv);
+  container.appendChild(form);
+}
+
+document.querySelectorAll('.quiz-container').forEach(container => {
+  const sectionId = container.dataset.sectionId;
+  const section = SECTIONS.find(s => s.id === sectionId);
+  if (section) renderQuiz(container, section);
+});
+</script>
+{% endblock %}
